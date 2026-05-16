@@ -12,6 +12,17 @@ const DEADLINE_MS = Number(process.env.ARK_DEADLINE_MS) || 55000;
 // chat/completions fallback of budget.
 const RESPONSES_CAP_MS = Number(process.env.ARK_RESPONSES_TIMEOUT_MS) || 20000;
 
+/**
+ * Doubao reasoning toggle. Reasoning models burn extra tokens/latency
+ * "thinking" before answering, which pushes JSON routes past Vercel's
+ * 60s cap. Disabled by default; set ARK_THINKING=enabled to restore it.
+ */
+function thinkingConfig() {
+  return process.env.ARK_THINKING === "enabled"
+    ? { type: "enabled" }
+    : { type: "disabled" };
+}
+
 /** fetch() bounded by an AbortController; aborts surface as fallback-able errors */
 async function fetchWithTimeout(url, options, timeoutMs) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -226,6 +237,7 @@ async function arkChatCompletionsJson({ system, user, maxTokens, apiKey, model, 
     model,
     temperature: 0.35,
     max_tokens: maxTokens,
+    thinking: thinkingConfig(),
     messages: [
       { role: "system", content: system + jsonHint },
       { role: "user", content: user },
