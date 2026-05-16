@@ -554,19 +554,6 @@ export default function App() {
             inputStyle={sidebarInputStyle}
           />
 
-          <div style={{ display: "flex", gap: 3, marginBottom: 14, justifyContent: "flex-end" }}>
-            {["zh", "en"].map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => setLocale(l)}
-                style={{ ...(locale === l ? btnA : btn), padding: "3px 8px", fontSize: 7 }}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
           <div style={{ fontSize:6.5, fontWeight:600, letterSpacing:"0.18em", color:"#bbb", marginBottom:6 }}>
             {t("audience")}
           </div>
