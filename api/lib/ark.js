@@ -5,24 +5,126 @@ const ARK_BASE =
   "https://ark.cn-beijing.volces.com/api/v3";
 const DEFAULT_MODEL = process.env.ARK_MODEL || "doubao-seed-2-0-pro-260215";
 
-export function extractArkText(json) {
-  if (typeof json.output_text === "string") return json.output_text;
+function textFromContent(content) {
+  if (typeof content === "string" && content.trim()) return content;
+  if (!Array.isArray(content)) return null;
 
-  for (const item of json.output ?? []) {
-    if (item.type === "message" && Array.isArray(item.content)) {
-      for (const c of item.content) {
-        if ((c.type === "output_text" || c.type === "text") && c.text) {
-          return c.text;
-        }
-      }
+  const parts = [];
+  for (const c of content) {
+    if (!c || typeof c !== "object") continue;
+    const type = String(c.type || "");
+    if (type === "refusal" || type === "reasoning" || type === "reasoning_text") {
+      continue;
     }
-    if (item.type === "output_text" && item.text) return item.text;
+    if (typeof c.text === "string" && c.text.trim()) parts.push(c.text);
+    else if (typeof c.output_text === "string" && c.output_text.trim()) {
+      parts.push(c.output_text);
+    } else if (typeof c.content === "string" && c.content.trim()) {
+      parts.push(c.content);
+    }
+  }
+  return parts.length ? parts.join("\n") : null;
+}
+
+function extractFromOutputItem(item) {
+  if (!item || typeof item !== "object") return null;
+
+  const type = String(item.type || "");
+
+  if (type === "message" || type === "assistant" || item.role === "assistant") {
+    const fromContent = textFromContent(item.content);
+    if (fromContent) return fromContent;
+  }
+
+  if (
+    (type === "output_text" || type === "text" || type === "text_delta") &&
+    typeof item.text === "string" &&
+    item.text.trim()
+  ) {
+    return item.text;
+  }
+
+  if (typeof item.text === "string" && item.text.trim()) return item.text;
+  if (typeof item.output_text === "string" && item.output_text.trim()) {
+    return item.output_text;
+  }
+
+  if (item.content) {
+    const nested = textFromContent(item.content);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function collectOutputItems(json) {
+  const candidates = [
+    json.output,
+    json.response?.output,
+    json.result?.output,
+    json.data?.output,
+  ];
+
+  const items = [];
+  for (const c of candidates) {
+    if (!c) continue;
+    if (Array.isArray(c)) items.push(...c);
+    else if (typeof c === "object") items.push(c);
+  }
+  return items;
+}
+
+/** Parse text from Ark Responses or Chat Completions payloads */
+export function extractArkText(json) {
+  if (!json || typeof json !== "object") {
+    throw new Error("Invalid Ark response");
+  }
+
+  if (typeof json.output_text === "string" && json.output_text.trim()) {
+    return json.output_text;
+  }
+
+  if (typeof json.text === "string" && json.text.trim()) {
+    return json.text;
+  }
+
+  for (const item of collectOutputItems(json)) {
+    const text = extractFromOutputItem(item);
+    if (text) return text;
+  }
+
+  const message = json.message ?? json.response?.message;
+  if (message) {
+    const fromMessage = textFromContent(message.content) ?? extractFromOutputItem(message);
+    if (fromMessage) return fromMessage;
   }
 
   const chat = json.choices?.[0]?.message?.content;
-  if (typeof chat === "string") return chat;
+  if (typeof chat === "string" && chat.trim()) return chat;
+  if (Array.isArray(chat)) {
+    const fromChat = textFromContent(chat);
+    if (fromChat) return fromChat;
+  }
 
-  throw new Error("No text in Ark response");
+  const status = json.status ?? json.response?.status;
+  const snippet = JSON.stringify(json).slice(0, 600);
+  console.error(
+    "[ark] No text in response",
+    status ? `status=${status}` : "",
+    snippet,
+  );
+  const err = new Error(
+    `No text in Ark response${status ? ` (status=${status})` : ""}`,
+  );
+  err.fallbackChat = true;
+  err.arkSnippet = snippet;
+  throw err;
+}
+
+function useResponsesApi() {
+  if (process.env.ARK_PREFER_CHAT === "1") return false;
+  if (process.env.ARK_USE_RESPONSES === "0") return false;
+  return true;
 }
 
 /** @see https://www.volcengine.com/docs/82379/1569618 */
@@ -63,27 +165,39 @@ async function arkResponsesJson({ system, user, maxTokens, apiKey, model }) {
   }
 
   const json = await res.json();
+  const status = json.status ?? json.response?.status;
+  if (status && status !== "completed" && status !== "succeeded") {
+    const e = new Error(`Ark Responses incomplete: status=${status}`);
+    e.fallbackChat = true;
+    throw e;
+  }
+
   return parseJsonFromModel(extractArkText(json));
 }
 
 /** OpenAI-compatible Chat API on Ark */
 async function arkChatCompletionsJson({ system, user, maxTokens, apiKey, model }) {
+  const body = {
+    model,
+    temperature: 0.35,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  };
+
+  if (process.env.ARK_JSON_MODE !== "0") {
+    body.response_format = { type: "json_object" };
+  }
+
   const res = await fetch(`${ARK_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0.35,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -92,7 +206,12 @@ async function arkChatCompletionsJson({ system, user, maxTokens, apiKey, model }
   }
 
   const json = await res.json();
-  const raw = json.choices?.[0]?.message?.content ?? "{}";
+  let raw;
+  try {
+    raw = extractArkText(json);
+  } catch {
+    raw = json.choices?.[0]?.message?.content ?? "{}";
+  }
   return parseJsonFromModel(typeof raw === "string" ? raw : JSON.stringify(raw));
 }
 
@@ -102,20 +221,24 @@ export async function arkChatJson({ system, user, maxTokens = 2048 }) {
 
   const model = process.env.ARK_MODEL || DEFAULT_MODEL;
 
-  try {
-    const data = await arkResponsesJson({ system, user, maxTokens, apiKey, model });
-    return { placeholder: false, data, provider: "ark", model };
-  } catch (err) {
-    if (err.fallbackChat) {
-      const data = await arkChatCompletionsJson({
-        system,
-        user,
-        maxTokens,
-        apiKey,
-        model,
-      });
-      return { placeholder: false, data, provider: "ark-chat", model };
+  if (useResponsesApi()) {
+    try {
+      const data = await arkResponsesJson({ system, user, maxTokens, apiKey, model });
+      return { placeholder: false, data, provider: "ark", model };
+    } catch (err) {
+      console.warn(
+        "[ark] Responses API failed, falling back to chat/completions:",
+        err.message?.slice(0, 200),
+      );
     }
-    throw err;
   }
+
+  const data = await arkChatCompletionsJson({
+    system,
+    user,
+    maxTokens,
+    apiKey,
+    model,
+  });
+  return { placeholder: false, data, provider: "ark-chat", model };
 }

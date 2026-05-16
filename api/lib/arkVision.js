@@ -44,7 +44,15 @@ export async function parseWithArkVision({ system, user, imageDataUri }) {
   }
 
   const json = await res.json();
-  const raw = extractArkText(json);
+  let raw;
+  try {
+    raw = extractArkText(json);
+  } catch (err) {
+    const status = json.status ?? json.response?.status;
+    throw new Error(
+      `Ark vision: no text${status ? ` (status=${status})` : ""}: ${err.message}`,
+    );
+  }
 
   return { placeholder: false, data: parseJsonFromModel(raw), provider: "ark-vision", model };
 }
