@@ -11,7 +11,6 @@ import { runTailor } from "./lib/tailorService.js";
 import { runCompose } from "./lib/composeService.js";
 import { runParse } from "./lib/parseService.js";
 import { runRewrite } from "./lib/rewriteService.js";
-import { runScreen } from "./lib/screenService.js";
 import { getViewCount, incrementViewCount, viewsStorageMode } from "./lib/viewStore.js";
 import { llmProviderLabel } from "./lib/llm.js";
 
@@ -117,20 +116,6 @@ app.post("/api/rewrite", async (req, res) => {
   }
 });
 
-app.post("/api/screen", async (req, res) => {
-  try {
-    const { cvData, jobDescription, locale } = req.body ?? {};
-    if (!cvData?.sections) {
-      return res.status(400).json({ error: "cvData required" });
-    }
-    const result = await runScreen({ cvData, jobDescription, locale });
-    return res.json(result);
-  } catch (err) {
-    console.error("[POST /api/screen]", err);
-    return res.status(err.status || 500).json({ error: err.message || "screen failed" });
-  }
-});
-
 /** @deprecated use /api/tailor or /api/compose */
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body ?? {};
@@ -157,5 +142,4 @@ app.listen(PORT, () => {
   console.log(`  POST /api/compose`);
   console.log(`  POST /api/parse`);
   console.log(`  POST /api/rewrite`);
-  console.log(`  POST /api/screen`);
 });

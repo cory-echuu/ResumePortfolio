@@ -89,7 +89,6 @@ async function callApi(path, body) {
 async function testLocalServices() {
   const { runTailor } = await import("../lib/tailorService.js");
   const { runCompose } = await import("../lib/composeService.js");
-  const { runScreen } = await import("../lib/screenService.js");
   const { runRewrite } = await import("../lib/rewriteService.js");
   const { chatJson } = await import("../lib/llm.js");
   const { prompts } = await import("../lib/prompts/index.js");
@@ -122,17 +121,6 @@ async function testLocalServices() {
     );
   } catch (e) {
     record("compose (local)", false, e.message);
-  }
-
-  try {
-    const s = await runScreen({ cvData, jobDescription: JD, locale: "en" });
-    record(
-      "screen (local)",
-      !s.placeholder && (s.hookLine || s.atsScore != null || s.personaReviews),
-      s.placeholder ? "placeholder" : `provider=${s.provider}`,
-    );
-  } catch (e) {
-    record("screen (local)", false, e.message);
   }
 
   try {
@@ -181,12 +169,6 @@ async function testHttpEndpoints() {
       path: "/api/compose",
       body: { cvData, jobDescription: JD, company: "Test" },
       ok: (j) => j.subject && j.body && !j.placeholder,
-    },
-    {
-      name: "POST /api/screen",
-      path: "/api/screen",
-      body: { cvData, jobDescription: JD, locale: "en" },
-      ok: (j) => !j.placeholder && (j.hookLine || j.personaReviews),
     },
     {
       name: "POST /api/rewrite",

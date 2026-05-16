@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { postTailor, postCompose, postScreen } from "../lib/api.js";
+import { postTailor, postCompose } from "../lib/api.js";
 import { applyTailorPlan } from "../lib/applyTailorPlan.js";
 import {
   listVersions,
@@ -59,7 +59,6 @@ export default function CareerKitPanel({
   const [error, setError] = useState("");
   const [agentNote, setAgentNote] = useState("");
   const [cover, setCover] = useState(null);
-  const [screen, setScreen] = useState(null);
 
   const refreshVersions = useCallback(() => {
     setVersions(listVersions());
@@ -118,24 +117,6 @@ export default function CareerKitPanel({
       if (v.meta?.jobDescription) setJobDescription(v.meta.jobDescription);
       if (v.meta?.persona) setPersona(v.meta.persona);
       setAgentNote(`已恢复版本：${v.name}`);
-    }
-  };
-
-  const handleScreen = async () => {
-    setError("");
-    setScreen(null);
-    setLoading("screen");
-    try {
-      const res = await postScreen({
-        cvData: data,
-        jobDescription: jobDescription.trim() || undefined,
-        locale,
-      });
-      setScreen(res);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(null);
     }
   };
 
@@ -240,62 +221,6 @@ export default function CareerKitPanel({
         >
           {agentNote}
         </p>
-      )}
-
-      <p style={{ fontSize: 6.5, color: "#999", marginBottom: 6 }}>{t("screenRun")}</p>
-      <button
-        type="button"
-        onClick={handleScreen}
-        disabled={loading === "screen"}
-        style={{ ...btn, width: "100%", padding: "7px", fontSize: 7.5, marginBottom: 8 }}
-      >
-        {loading === "screen" ? t("screening") : t("hrScreen")}
-      </button>
-
-      {screen && !screen.placeholder && (
-        <div
-          style={{
-            fontSize: 7,
-            lineHeight: 1.5,
-            color: "#444",
-            marginBottom: 10,
-            padding: "8px",
-            background: "#e8eaed",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {screen.hookLine && (
-            <p style={{ fontWeight: 600, marginBottom: 6 }}>
-              {t("hookLine")}: {screen.hookLine}
-            </p>
-          )}
-          {screen.hookLineAlt && <p style={{ marginBottom: 6, color: "#666" }}>{screen.hookLineAlt}</p>}
-          {screen.atsScore != null && (
-            <p style={{ marginBottom: 4 }}>
-              {t("atsScore")}: {screen.atsScore}/100 · {screen.atsVerdict}
-            </p>
-          )}
-          {screen.collaborationAngle && (
-            <p style={{ marginBottom: 6 }}>
-              {t("collaboration")}: {screen.collaborationAngle}
-            </p>
-          )}
-          {screen.topFixes?.length > 0 && (
-            <div style={{ marginBottom: 6 }}>
-              <span style={{ fontWeight: 600 }}>{t("topFixes")}:</span>
-              <ul style={{ margin: "4px 0 0 14px", padding: 0 }}>
-                {screen.topFixes.map((f, i) => (
-                  <li key={i}>{f}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {screen.personaReviews?.hr && (
-            <p style={{ marginTop: 6, color: "#555" }}>
-              HR: {screen.personaReviews.hr.score}/100 — {screen.personaReviews.hr.oneLineTake}
-            </p>
-          )}
-        </div>
       )}
 
       <span style={{ ...labelStyle, marginTop: 4 }}>{t("versions")}</span>

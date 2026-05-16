@@ -12,6 +12,4 @@ export const prompts = {
   parseSchema: () => loadPrompt("parse-schema"),
   parseSystem: () => loadPrompt("parse-system"),
   rewrite: () => loadPrompt("rewrite"),
-  screenSchema: () => loadPrompt("screen-schema"),
-  screenSystem: () => loadPrompt("screen-system"),
 };

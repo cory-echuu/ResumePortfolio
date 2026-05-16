@@ -33,5 +33,15 @@ export async function extractFromBuffer({ buffer, ext, mimeType }) {
     return { kind: "image", base64: b64, mimeType: mt };
   }
 
+  if (
+    ["txt", "text", "md", "markdown", "log", "csv", "tsv"].includes(ext) ||
+    mimeType.startsWith("text/") ||
+    mimeType === "application/json"
+  ) {
+    const raw = buffer.toString("utf8");
+    const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    return { kind: "text", text };
+  }
+
   throw new Error(`Unsupported file type: .${ext}`);
 }
