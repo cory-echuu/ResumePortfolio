@@ -49,7 +49,7 @@ ${prompts.tailorRules()}`;
   let plan;
   let placeholder = false;
 
-  const llm = await chatJson({ system, user, maxTokens: 1500 });
+  const llm = await chatJson({ system, user, maxTokens: 3072 });
   if (llm.placeholder) {
     placeholder = true;
     plan = fallbackPlan(cvData, persona, jd);

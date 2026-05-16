@@ -35,7 +35,8 @@ ${lang}`;
     ? `JOB DESCRIPTION:\n${jd}\n\n---\nCV:\n${cvDataToText(cvData)}`
     : `No JD provided — evaluate as a strong creative technologist / product designer general application.\n\n---\nCV:\n${cvDataToText(cvData)}`;
 
-  const llm = await chatJson({ system, user, maxTokens: 4096 });
+  const maxTokens = process.env.VERCEL ? 2500 : 4096;
+  const llm = await chatJson({ system, user, maxTokens });
   if (llm.placeholder) {
     return fallbackScreen();
   }

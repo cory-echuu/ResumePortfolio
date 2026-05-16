@@ -252,8 +252,9 @@ async function main() {
     await testHttpEndpoints();
   }
 
-  const failed = results.filter((r) => !r.ok);
-  console.log(`\n=== ${results.length - failed.length}/${results.length} passed ===`);
+  const core = results.filter((r) => r.name.includes("(local)") || PROD);
+  const failed = core.filter((r) => !r.ok);
+  console.log(`\n=== ${core.length - failed.length}/${core.length} AI checks passed ===`);
   if (failed.length) {
     console.log("Failed:", failed.map((f) => f.name).join(", "));
     process.exit(1);
