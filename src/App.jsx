@@ -855,6 +855,38 @@ export default function App() {
       </div>
       )}
 
+      {!isMobile && (
+        <div
+          className="no-print"
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 320,
+            display: "flex",
+            gap: 4,
+            fontFamily: f,
+          }}
+        >
+          {["zh", "en"].map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLocale(l)}
+              style={{
+                ...(locale === l ? btnA : btn),
+                padding: "6px 12px",
+                fontSize: 7.5,
+                letterSpacing: "0.12em",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+              }}
+            >
+              {l === "zh" ? "中文" : "EN"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {!editing && !isMobile && (
         <button className="no-print" onClick={()=>setEditing(true)}
                 style={{ ...btnA, position:"fixed", bottom:16, right:16, zIndex:200,
