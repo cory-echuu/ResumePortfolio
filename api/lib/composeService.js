@@ -29,7 +29,7 @@ export async function runCompose({ cvData, jobDescription, recipientName, compan
 Recipient: ${recipientName ?? "(hiring manager)"}
 JD:\n${jd}\n\nCV:\n${cvDataToText(cvData)}`;
 
-  const llm = await chatJson({ system: prompts.compose(), user, maxTokens: 512 });
+  const llm = await chatJson({ system: prompts.compose(), user, maxTokens: 2048 });
   if (llm.placeholder) {
     return fallbackLetter({ recipientName, jobDescription: jd, cvData });
   }

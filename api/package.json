@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:ai": "node scripts/test-ai.mjs",
+    "test:ai:prod": "node scripts/test-ai.mjs --prod"
   },
   "dependencies": {
     "cors": "^2.8.5",

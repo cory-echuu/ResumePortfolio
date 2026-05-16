@@ -167,16 +167,31 @@ async function arkResponsesJson({ system, user, maxTokens, apiKey, model }) {
   const json = await res.json();
   const status = json.status ?? json.response?.status;
   if (status && status !== "completed" && status !== "succeeded") {
-    const e = new Error(`Ark Responses incomplete: status=${status}`);
-    e.fallbackChat = true;
-    throw e;
+    try {
+      return parseJsonFromModel(extractArkText(json));
+    } catch {
+      const e = new Error(`Ark Responses incomplete: status=${status}`);
+      e.fallbackChat = true;
+      throw e;
+    }
   }
 
   return parseJsonFromModel(extractArkText(json));
 }
 
+function jsonObjectUnsupported(errText) {
+  return /json_object|response_format\.type/i.test(errText);
+}
+
 /** OpenAI-compatible Chat API on Ark */
-async function arkChatCompletionsJson({ system, user, maxTokens, apiKey, model }) {
+async function arkChatCompletionsJson({
+  system,
+  user,
+  maxTokens,
+  apiKey,
+  model,
+  useJsonFormat = process.env.ARK_JSON_MODE !== "0",
+}) {
   const body = {
     model,
     temperature: 0.35,
@@ -187,7 +202,7 @@ async function arkChatCompletionsJson({ system, user, maxTokens, apiKey, model }
     ],
   };
 
-  if (process.env.ARK_JSON_MODE !== "0") {
+  if (useJsonFormat) {
     body.response_format = { type: "json_object" };
   }
 
@@ -202,6 +217,16 @@ async function arkChatCompletionsJson({ system, user, maxTokens, apiKey, model }
 
   if (!res.ok) {
     const err = await res.text();
+    if (useJsonFormat && jsonObjectUnsupported(err)) {
+      return arkChatCompletionsJson({
+        system,
+        user,
+        maxTokens,
+        apiKey,
+        model,
+        useJsonFormat: false,
+      });
+    }
     throw new Error(`Ark Chat ${res.status}: ${err.slice(0, 400)}`);
   }
 
